@@ -1,0 +1,16 @@
+{
+  "name": "otaco-map",
+  "version": "1.0.0",
+  "description": "太田市デジタル金券 OTACO 加盟店マップ",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

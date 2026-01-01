@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTACO 加盟店マップ | 太田市デジタル金券</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --otaco-red: #c41e3a;
+            --otaco-gold: #d4a84b;
+            --otaco-dark: #1a1a2e;
+            --otaco-cream: #faf7f2;
+            --otaco-light: #f5ebe0;
+            --shadow-soft: 0 4px 20px rgba(0,0,0,0.08);
+            --shadow-strong: 0 8px 32px rgba(0,0,0,0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Zen Maru Gothic', 'Noto Sans JP', sans-serif;
+            background: var(--otaco-cream);
+            color: var(--otaco-dark);
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 70px;
+            background: linear-gradient(135deg, var(--otaco-dark) 0%, #2d2d44 100%);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            z-index: 1000;
+            box-shadow: var(--shadow-strong);
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--otaco-gold) 0%, #e8c06a 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 900;
+            color: var(--otaco-dark);
+            box-shadow: 0 4px 12px rgba(212, 168, 75, 0.4);
+        }
+
+        .logo-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logo-main {
+            font-size: 22px;
+            font-weight: 900;
+            color: white;
+            letter-spacing: 2px;
+        }
+
+        .logo-sub {
+            font-size: 11px;
+            color: rgba(255,255,255,0.7);
+            letter-spacing: 1px;
+        }
+
+        .stats-badge {
+            margin-left: auto;
+            background: rgba(255,255,255,0.1);
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .stats-number {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--otaco-gold);
+        }
+
+        .stats-label {
+            font-size: 12px;
+            color: rgba(255,255,255,0.8);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 70px;
+            left: 0;
+            width: 380px;
+            height: calc(100vh - 70px);
+            background: white;
+            z-index: 900;
+            box-shadow: var(--shadow-strong);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-380px);
+        }
+
+        .sidebar-toggle {
+            position: absolute;
+            right: -48px;
+            top: 20px;
+            width: 48px;
+            height: 48px;
+            background: white;
+            border: none;
+            border-radius: 0 12px 12px 0;
+            cursor: pointer;
+            box-shadow: var(--shadow-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.2s;
+        }
+
+        .sidebar-toggle:hover {
+            background: var(--otaco-light);
+        }
+
+        /* Search Section */
+        .search-section {
+            padding: 20px;
+            background: linear-gradient(180deg, var(--otaco-light) 0%, white 100%);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 14px 20px 14px 48px;
+            border: 2px solid transparent;
+            border-radius: 14px;
+            font-size: 15px;
+            font-family: inherit;
+            background: white;
+            box-shadow: var(--shadow-soft);
+            transition: all 0.2s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--otaco-gold);
+            box-shadow: 0 4px 20px rgba(212, 168, 75, 0.2);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 18px;
+            opacity: 0.5;
+        }
+
+        /* Category Filters */
+        .category-filters {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .category-btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 20px;
+            font-size: 13px;
+            font-family: inherit;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: white;
+            color: var(--otaco-dark);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        .category-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .category-btn.active {
+            color: white;
+        }
+
+        .category-btn[data-category="飲食"].active { background: #e74c3c; }
+        .category-btn[data-category="物販"].active { background: #3498db; }
+        .category-btn[data-category="体験"].active { background: #9b59b6; }
+        .category-btn[data-category="観光"].active { background: #27ae60; }
+        .category-btn[data-category="宿泊"].active { background: #f39c12; }
+        .category-btn[data-category="all"].active { 
+            background: var(--otaco-dark);
+        }
+
+        .category-icon {
+            font-size: 14px;
+        }
+
+        /* Card Filter */
+        .card-filter {
+            margin-top: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-checkbox {
+            display: none;
+        }
+
+        .card-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #666;
+            padding: 6px 12px;
+            background: white;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .card-label:hover {
+            background: var(--otaco-light);
+        }
+
+        .card-checkbox:checked + .card-label {
+            background: var(--otaco-gold);
+            color: white;
+        }
+
+        .card-icon {
+            width: 20px;
+            height: 14px;
+            background: linear-gradient(135deg, #ddd 0%, #bbb 100%);
+            border-radius: 2px;
+        }
+
+        .card-checkbox:checked + .card-label .card-icon {
+            background: linear-gradient(135deg, white 0%, #f0f0f0 100%);
+        }
+
+        /* Store List */
+        .store-list-container {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .list-header {
+            padding: 16px 20px;
+            background: white;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .list-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--otaco-dark);
+        }
+
+        .list-count {
+            font-size: 13px;
+            color: #888;
+        }
+
+        .store-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .store-card {
+            background: white;
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        .store-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-soft);
+            border-color: var(--otaco-gold);
+        }
+
+        .store-card.active {
+            border-color: var(--otaco-red);
+            background: linear-gradient(135deg, #fff5f5 0%, white 100%);
+        }
+
+        .store-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .store-category-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .store-category-icon.飲食 { background: #fdeaea; }
+        .store-category-icon.物販 { background: #e8f4fd; }
+        .store-category-icon.体験 { background: #f3e8fd; }
+        .store-category-icon.観光 { background: #e8fdf0; }
+        .store-category-icon.宿泊 { background: #fdf8e8; }
+
+        .store-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .store-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--otaco-dark);
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .store-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .store-town {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .store-category-tag {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+
+        .store-category-tag.飲食 { background: #fdeaea; color: #c0392b; }
+        .store-category-tag.物販 { background: #e8f4fd; color: #2980b9; }
+        .store-category-tag.体験 { background: #f3e8fd; color: #8e44ad; }
+        .store-category-tag.観光 { background: #e8fdf0; color: #27ae60; }
+        .store-category-tag.宿泊 { background: #fdf8e8; color: #d68910; }
+
+        .store-card-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            background: var(--otaco-gold);
+            color: white;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        /* Map */
+        #map {
+            position: fixed;
+            top: 70px;
+            left: 380px;
+            right: 0;
+            bottom: 0;
+            z-index: 100;
+            transition: left 0.3s ease;
+        }
+
+        .sidebar.collapsed + #map,
+        #map.expanded {
+            left: 0;
+        }
+
+        /* Custom Markers */
+        .custom-marker {
+            width: 36px;
+            height: 36px;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+            border: 3px solid white;
+        }
+
+        .custom-marker span {
+            transform: rotate(45deg);
+            font-size: 14px;
+        }
+
+        .marker-飲食 { background: #e74c3c; }
+        .marker-物販 { background: #3498db; }
+        .marker-体験 { background: #9b59b6; }
+        .marker-観光 { background: #27ae60; }
+        .marker-宿泊 { background: #f39c12; }
+
+        /* Cluster styles */
+        .marker-cluster-small {
+            background-color: rgba(212, 168, 75, 0.6);
+        }
+        .marker-cluster-small div {
+            background-color: rgba(212, 168, 75, 0.9);
+        }
+        .marker-cluster-medium {
+            background-color: rgba(196, 30, 58, 0.6);
+        }
+        .marker-cluster-medium div {
+            background-color: rgba(196, 30, 58, 0.9);
+        }
+        .marker-cluster-large {
+            background-color: rgba(26, 26, 46, 0.6);
+        }
+        .marker-cluster-large div {
+            background-color: rgba(26, 26, 46, 0.9);
+        }
+
+        .marker-cluster {
+            border-radius: 50%;
+        }
+
+        .marker-cluster div {
+            width: 36px;
+            height: 36px;
+            margin-left: 7px;
+            margin-top: 7px;
+            border-radius: 50%;
+            font-size: 13px;
+            font-weight: 700;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Noto Sans JP', sans-serif;
+        }
+
+        /* Popup styles */
+        .leaflet-popup-content-wrapper {
+            border-radius: 16px;
+            box-shadow: var(--shadow-strong);
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .leaflet-popup-content {
+            margin: 0;
+            min-width: 240px;
+        }
+
+        .popup-content {
+            padding: 16px;
+        }
+
+        .popup-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .popup-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .popup-icon.飲食 { background: #fdeaea; }
+        .popup-icon.物販 { background: #e8f4fd; }
+        .popup-icon.体験 { background: #f3e8fd; }
+        .popup-icon.観光 { background: #e8fdf0; }
+        .popup-icon.宿泊 { background: #fdf8e8; }
+
+        .popup-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--otaco-dark);
+            flex: 1;
+        }
+
+        .popup-details {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .popup-detail {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .popup-detail-icon {
+            width: 20px;
+            text-align: center;
+        }
+
+        .popup-badges {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .popup-badge {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .popup-badge.card {
+            background: var(--otaco-gold);
+            color: white;
+        }
+
+        .popup-badge.app-only {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        /* Loading state */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--otaco-cream);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s;
+        }
+
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--otaco-light);
+            border-top-color: var(--otaco-gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            font-size: 16px;
+            color: var(--otaco-dark);
+            font-weight: 500;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .header {
+                height: 60px;
+                padding: 0 16px;
+            }
+
+            .logo-icon {
+                width: 36px;
+                height: 36px;
+                font-size: 18px;
+            }
+
+            .logo-main {
+                font-size: 18px;
+            }
+
+            .logo-sub {
+                font-size: 10px;
+            }
+
+            .stats-badge {
+                display: none;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: 45vh;
+                top: auto;
+                bottom: 0;
+                border-radius: 24px 24px 0 0;
+                transform: translateY(calc(45vh - 60px));
+            }
+
+            .sidebar.expanded {
+                transform: translateY(0);
+            }
+
+            .sidebar.collapsed {
+                transform: translateY(calc(45vh - 60px));
+            }
+
+            .sidebar-toggle {
+                display: none;
+            }
+
+            .sidebar-handle {
+                display: block;
+                width: 40px;
+                height: 4px;
+                background: #ddd;
+                border-radius: 2px;
+                margin: 12px auto;
+            }
+
+            #map {
+                top: 60px;
+                left: 0;
+                bottom: 45vh;
+                height: calc(55vh - 60px);
+            }
+
+            #map.expanded {
+                bottom: 60px;
+                height: calc(100vh - 120px);
+            }
+
+            .search-section {
+                padding: 16px;
+            }
+
+            .category-filters {
+                overflow-x: auto;
+                flex-wrap: nowrap;
+                padding-bottom: 8px;
+            }
+
+            .category-btn {
+                flex-shrink: 0;
+            }
+        }
+
+        /* Scrollbar styling */
+        .store-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .store-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .store-list::-webkit-scrollbar-thumb {
+            background: #ddd;
+            border-radius: 3px;
+        }
+
+        .store-list::-webkit-scrollbar-thumb:hover {
+            background: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">店舗データを読み込み中...</div>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="logo-container">
+            <div class="logo-icon">O</div>
+            <div class="logo-text">
+                <span class="logo-main">OTACO MAP</span>
+                <span class="logo-sub">太田市デジタル金券 加盟店マップ</span>
+            </div>
+        </div>
+        <div class="stats-badge">
+            <span class="stats-number" id="totalCount">-</span>
+            <span class="stats-label">加盟店</span>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-handle" onclick="toggleSidebar()"></div>
+        <button class="sidebar-toggle" onclick="toggleSidebar()" id="sidebarToggle">◀</button>
+        
+        <!-- Search Section -->
+        <div class="search-section">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" class="search-input" id="searchInput" placeholder="店舗名・町名で検索...">
+            </div>
+            
+            <div class="category-filters">
+                <button class="category-btn active" data-category="all">
+                    <span class="category-icon">📍</span>
+                    すべて
+                </button>
+                <button class="category-btn" data-category="飲食">
+                    <span class="category-icon">🍽️</span>
+                    飲食
+                </button>
+                <button class="category-btn" data-category="物販">
+                    <span class="category-icon">🛒</span>
+                    物販
+                </button>
+                <button class="category-btn" data-category="体験">
+                    <span class="category-icon">✨</span>
+                    体験
+                </button>
+                <button class="category-btn" data-category="観光">
+                    <span class="category-icon">🏯</span>
+                    観光
+                </button>
+                <button class="category-btn" data-category="宿泊">
+                    <span class="category-icon">🏨</span>
+                    宿泊
+                </button>
+            </div>
+
+            <div class="card-filter">
+                <input type="checkbox" class="card-checkbox" id="cardOnly">
+                <label class="card-label" for="cardOnly">
+                    <div class="card-icon"></div>
+                    磁気・定額カード対応店のみ
+                </label>
+            </div>
+        </div>
+
+        <!-- Store List -->
+        <div class="store-list-container">
+            <div class="list-header">
+                <span class="list-title">店舗一覧</span>
+                <span class="list-count" id="filteredCount">0件</span>
+            </div>
+            <div class="store-list" id="storeList"></div>
+        </div>
+    </aside>
+
+    <!-- Map -->
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <script>
+        // Global state
+        let stores = [];
+        let map;
+        let markerCluster;
+        let markers = {};
+        let activeCategory = 'all';
+        let cardOnlyFilter = false;
+        let searchQuery = '';
+
+        // Category icons
+        const categoryIcons = {
+            '飲食': '🍽️',
+            '物販': '🛒',
+            '体験': '✨',
+            '観光': '🏯',
+            '宿泊': '🏨'
+        };
+
+        // Initialize map
+        function initMap() {
+            map = L.map('map', {
+                center: [36.29, 139.37],
+                zoom: 13,
+                zoomControl: false
+            });
+
+            // Add zoom control to bottom right
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+            // Custom map tiles - CartoDB Positron for clean look
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                maxZoom: 19
+            }).addTo(map);
+
+            // Initialize marker cluster
+            markerCluster = L.markerClusterGroup({
+                maxClusterRadius: 50,
+                spiderfyOnMaxZoom: true,
+                showCoverageOnHover: false,
+                zoomToBoundsOnClick: true,
+                iconCreateFunction: function(cluster) {
+                    const count = cluster.getChildCount();
+                    let size = 'small';
+                    if (count > 50) size = 'large';
+                    else if (count > 20) size = 'medium';
+                    
+                    return L.divIcon({
+                        html: `<div>${count}</div>`,
+                        className: `marker-cluster marker-cluster-${size}`,
+                        iconSize: [50, 50]
+                    });
+                }
+            });
+
+            map.addLayer(markerCluster);
+        }
+
+        // Create custom marker icon
+        function createMarkerIcon(category) {
+            const icon = categoryIcons[category] || '📍';
+            return L.divIcon({
+                html: `<div class="custom-marker marker-${category}"><span>${icon}</span></div>`,
+                className: 'custom-marker-container',
+                iconSize: [36, 36],
+                iconAnchor: [18, 36],
+                popupAnchor: [0, -36]
+            });
+        }
+
+        // Create popup content
+        function createPopupContent(store) {
+            const cardBadge = store.card 
+                ? '<span class="popup-badge card">💳 カード対応</span>'
+                : '<span class="popup-badge app-only">📱 アプリのみ</span>';
+            
+            return `
+                <div class="popup-content">
+                    <div class="popup-header">
+                        <div class="popup-icon ${store.category}">${categoryIcons[store.category]}</div>
+                        <div class="popup-title">${store.name}</div>
+                    </div>
+                    <div class="popup-details">
+                        <div class="popup-detail">
+                            <span class="popup-detail-icon">📍</span>
+                            <span>太田市${store.town}</span>
+                        </div>
+                        <div class="popup-detail">
+                            <span class="popup-detail-icon">🏷️</span>
+                            <span>${store.category}</span>
+                        </div>
+                    </div>
+                    <div class="popup-badges">
+                        ${cardBadge}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Add markers to map
+        function addMarkers(storesToShow) {
+            markerCluster.clearLayers();
+            markers = {};
+
+            storesToShow.forEach(store => {
+                const marker = L.marker([store.lat, store.lng], {
+                    icon: createMarkerIcon(store.category)
+                });
+                
+                marker.bindPopup(createPopupContent(store), {
+                    maxWidth: 300
+                });
+
+                marker.on('click', () => {
+                    highlightStoreCard(store.no);
+                });
+
+                markers[store.no] = marker;
+                markerCluster.addLayer(marker);
+            });
+        }
+
+        // Render store list
+        function renderStoreList(storesToShow) {
+            const listEl = document.getElementById('storeList');
+            const countEl = document.getElementById('filteredCount');
+            
+            countEl.textContent = `${storesToShow.length}件`;
+            
+            listEl.innerHTML = storesToShow.map(store => `
+                <div class="store-card" data-id="${store.no}" onclick="focusStore(${store.no})">
+                    <div class="store-header">
+                        <div class="store-category-icon ${store.category}">
+                            ${categoryIcons[store.category]}
+                        </div>
+                        <div class="store-info">
+                            <div class="store-name">${store.name}</div>
+                            <div class="store-meta">
+                                <span class="store-town">📍 ${store.town}</span>
+                                <span class="store-category-tag ${store.category}">${store.category}</span>
+                                ${store.card ? '<span class="store-card-badge">💳</span>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Filter stores
+        function filterStores() {
+            let filtered = stores;
+
+            // Category filter
+            if (activeCategory !== 'all') {
+                filtered = filtered.filter(s => s.category === activeCategory);
+            }
+
+            // Card filter
+            if (cardOnlyFilter) {
+                filtered = filtered.filter(s => s.card);
+            }
+
+            // Search filter
+            if (searchQuery) {
+                const query = searchQuery.toLowerCase();
+                filtered = filtered.filter(s => 
+                    s.name.toLowerCase().includes(query) || 
+                    s.town.toLowerCase().includes(query)
+                );
+            }
+
+            return filtered;
+        }
+
+        // Update display
+        function updateDisplay() {
+            const filtered = filterStores();
+            addMarkers(filtered);
+            renderStoreList(filtered);
+        }
+
+        // Focus on store
+        function focusStore(storeId) {
+            const store = stores.find(s => s.no === storeId);
+            if (store && markers[storeId]) {
+                map.setView([store.lat, store.lng], 17);
+                markers[storeId].openPopup();
+                highlightStoreCard(storeId);
+                
+                // On mobile, collapse sidebar when store is selected
+                if (window.innerWidth <= 768) {
+                    document.getElementById('sidebar').classList.add('collapsed');
+                    document.getElementById('map').classList.add('expanded');
+                }
+            }
+        }
+
+        // Highlight store card
+        function highlightStoreCard(storeId) {
+            document.querySelectorAll('.store-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            const card = document.querySelector(`.store-card[data-id="${storeId}"]`);
+            if (card) {
+                card.classList.add('active');
+                card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        // Toggle sidebar
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.getElementById('sidebarToggle');
+            const mapEl = document.getElementById('map');
+            
+            sidebar.classList.toggle('collapsed');
+            mapEl.classList.toggle('expanded');
+            toggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+            
+            // Invalidate map size after animation
+            setTimeout(() => map.invalidateSize(), 300);
+        }
+
+        // Initialize
+        async function init() {
+            initMap();
+
+            try {
+                const response = await fetch('/api/stores');
+                stores = await response.json();
+                
+                document.getElementById('totalCount').textContent = stores.length;
+                updateDisplay();
+                
+                // Hide loading
+                document.getElementById('loadingOverlay').classList.add('hidden');
+            } catch (error) {
+                console.error('Failed to load stores:', error);
+                document.querySelector('.loading-text').textContent = 'データの読み込みに失敗しました';
+            }
+
+            // Event listeners
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    activeCategory = btn.dataset.category;
+                    updateDisplay();
+                });
+            });
+
+            document.getElementById('cardOnly').addEventListener('change', (e) => {
+                cardOnlyFilter = e.target.checked;
+                updateDisplay();
+            });
+
+            document.getElementById('searchInput').addEventListener('input', (e) => {
+                searchQuery = e.target.value;
+                updateDisplay();
+            });
+
+            // Mobile swipe handling for sidebar
+            if (window.innerWidth <= 768) {
+                const sidebar = document.getElementById('sidebar');
+                let startY = 0;
+                
+                sidebar.addEventListener('touchstart', (e) => {
+                    startY = e.touches[0].clientY;
+                });
+                
+                sidebar.addEventListener('touchend', (e) => {
+                    const endY = e.changedTouches[0].clientY;
+                    const diff = startY - endY;
+                    
+                    if (Math.abs(diff) > 50) {
+                        if (diff > 0) {
+                            sidebar.classList.remove('collapsed');
+                            document.getElementById('map').classList.remove('expanded');
+                        } else {
+                            sidebar.classList.add('collapsed');
+                            document.getElementById('map').classList.add('expanded');
+                        }
+                        setTimeout(() => map.invalidateSize(), 300);
+                    }
+                });
+            }
+        }
+
+        // Start
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
